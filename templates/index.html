@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% if g.user %}
+      <h1>Welcome back, {{ g.user.username }}!</h1>
+      <p>Let's polish some text.</p>
+    {% else %}
+      <h1>Welcome to PolishedText.ai</h1>
+      <p>Please log in or register to begin.</p>
+    {% endif %}
+{% endblock %}

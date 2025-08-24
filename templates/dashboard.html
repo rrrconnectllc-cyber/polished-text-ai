@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>{{ g.user.username }}'s Dashboard</h2>
+    <p>Here is a history of your polished documents.</p>
+    
+    <article>
+    {% for doc in documents %}
+        <details>
+            <summary>
+                Polished on: {{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}
+            </summary>
+            <h6>Original Text</h6>
+            <blockquote>{{ doc.original_text }}</blockquote>
+            <h6>Polished Text</h6>
+            <blockquote><strong>{{ doc.polished_text }}</strong></blockquote>
+        </details>
+    {% else %}
+        <p>You haven't polished any documents yet. Go to the <a href="{{ url_for('index') }}">homepage</a> to get started.</p>
+    {% endfor %}
+    </article>
+{% endblock %}
