@@ -2,8 +2,25 @@
 
 {% block content %}
     {% if g.user %}
-      <h1>Welcome back, {{ g.user.username }}!</h1>
-      <p>Let's polish some text.</p>
+      <article>
+        <header>
+          <hgroup>
+            <h1>Welcome back, {{ g.user.username }}!</h1>
+            <h2>Enter your text below to get started.</h2>
+          </hgroup>
+        </header>
+        
+        <form method="post">
+          <label for="original_text">Your Text (Max 500 characters)</label>
+          <textarea name="original_text" id="original_text" rows="8" maxlength="500" required>{{ original_text or '' }}</textarea>
+
+          <label for="polished_text">Polished Text</label>
+          <textarea name="polished_text" id="polished_text" rows="8" readonly placeholder="Your AI-polished text will appear here...">{{ polished_text or '' }}</textarea>
+          
+          <button type="submit">Polish Text</button>
+        </form>
+      </article>
+
     {% else %}
       <h1>Welcome to PolishedText.ai</h1>
       <p>Please log in or register to begin.</p>
