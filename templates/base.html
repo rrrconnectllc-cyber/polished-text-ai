@@ -1,5 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>PolishedText.ai</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-</head><body><nav class="container"><ul><li><strong><a href="/">🚀 PolishedText.ai</a></strong></li></ul><ul>{% if g.user %}<li><a href="/dashboard">Dashboard</a></li><li><a href="/logout">Logout</a></li>{% else %}<li><a href="/register">Register</a></li><li><a href="/login">Login</a></li>{% endif %}</ul></nav><main class="container">{% with messages = get_flashed_messages() %}{% if messages %}<div class="flash-error">{% for message in messages %}<span>{{ message }}</span>{% endfor %}</div>{% endif %}{% endwith %}{% block content %}{% endblock %}</main></body></html>
+<head>
+    <meta charset="UTF-8">
+    <title>PolishedText.ai</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <nav class="container">
+        <ul>
+            <li><strong><a href="{{ url_for('index') }}">🚀 PolishedText.ai</a></strong></li>
+        </ul>
+        <ul>
+            {% if g.user %}
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            {% else %}
+                <li><a href="{{ url_for('register') }}">Register</a></li>
+                <li><a href="{{ url_for('login') }}">Login</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    <main class="container">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-error">
+            {% for message in messages %}
+            <span>{{ message }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

@@ -6,23 +6,56 @@
         <header>
           <hgroup>
             <h1>Welcome back, {{ g.user.username }}!</h1>
-            <h2>Enter your text below to get started.</h2>
+            <h2>You have <strong>{{ quota_left }}</strong> free polishes left this month.</h2>
           </hgroup>
         </header>
         
-        <form method="post">
+        <form id="polish-form" method="post">
           <label for="original_text">Your Text (Max 500 characters)</label>
-          <textarea name="original_text" id="original_text" rows="8" maxlength="500" required>{{ original_text or '' }}</textarea>
+          <textarea name="original_text" id="original_text" rows="8" maxlength="500" required {% if quota_left <= 0 %}disabled{% endif %}>{{ original_text or '' }}</textarea>
 
           <label for="polished_text">Polished Text</label>
           <textarea name="polished_text" id="polished_text" rows="8" readonly placeholder="Your AI-polished text will appear here...">{{ polished_text or '' }}</textarea>
           
-          <button type="submit">Polish Text</button>
+          <button id="polish-button" type="submit" {% if quota_left <= 0 %}disabled{% endif %}>Polish Text</button>
         </form>
       </article>
 
     {% else %}
-      <h1>Welcome to PolishedText.ai</h1>
-      <p>Please log in or register to begin.</p>
+      <article>
+        <header>
+            <hgroup>
+                <h1>Instantly Improve Your Writing</h1>
+                <h2>Get 3 free text polishes without signing up. All processing is secure.</h2>
+            </hgroup>
+        </header>
+        
+        <form id="polish-form" method="post">
+          <label for="original_text">Your Text (Max 250 characters)</label>
+          <textarea name="original_text" id="original_text" rows="8" maxlength="250" required>{{ original_text or '' }}</textarea>
+          <label for="polished_text">Polished Text</label>
+          <textarea name="polished_text" id="polished_text" rows="8" readonly placeholder="Your AI-polished text will appear here...">{{ polished_text or '' }}</textarea>
+          <button id="polish-button" type="submit">Polish Text</button>
+          <div id="limit-message" style="display: none; margin-top: 1rem;">
+              <p style="color: var(--pico-color-red);">You've used your 3 free polishes. Please <a href="{{ url_for('register') }}">register</a> to get 10 more each month!</p>
+          </div>
+        </form>
+      </article>
+      <script>
+        // Guest user script remains the same
+        document.addEventListener('DOMContentLoaded', function() {
+            const polishForm = document.getElementById('polish-form');
+            const polishButton = document.getElementById('polish-button');
+            const limitMessage = document.getElementById('limit-message');
+            const originalTextArea = document.getElementById('original_text');
+            const GUEST_LIMIT = 3;
+            let usageCount = parseInt(localStorage.getItem('guestUsageCount')) || 0;
+            function showLimitPopup() { Swal.fire({ title: 'Limit Reached!', html: "You've used your 3 free polishes.<br>Create a free account to get 10 more each month!", icon: 'info', confirmButtonText: 'Register Now', showCancelButton: true, cancelButtonText: 'Maybe Later' }).then((result) => { if (result.isConfirmed) { window.location.href = "{{ url_for('register') }}"; } }); }
+            function checkUsage() { if (usageCount >= GUEST_LIMIT) { polishButton.disabled = true; originalTextArea.disabled = true; originalTextArea.placeholder = 'Please register to continue...'; limitMessage.style.display = 'block'; } }
+            checkUsage();
+            polishForm.addEventListener('submit', function(event) { if (usageCount >= GUEST_LIMIT) { event.preventDefault(); showLimitPopup(); return; } usageCount++; localStorage.setItem('guestUsageCount', usageCount); });
+        });
+      </script>
     {% endif %}
+
 {% endblock %}

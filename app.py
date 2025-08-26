@@ -1,18 +1,20 @@
-from dotenv import load_dotenv
-load_dotenv()
-# app.py (Final MVP with Dashboard)
+# app.py (with Registered User Quotas)
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, g, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from ai_core import polish_text
 import functools
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-super-secret-key-for-dev'
 DB_FILE = "polished_text.db"
+MONTHLY_QUOTA = 10
 
-# --- Database Functions ---
+# ... (get_db, close_db, load_logged_in_user, login_required functions remain the same) ...
 def get_db():
     if 'db' not in g:
         g.db = sqlite3.connect(DB_FILE)
@@ -26,7 +28,6 @@ def close_db(e=None):
 
 app.teardown_appcontext(close_db)
 
-# --- User Session & Auth ---
 @app.before_request
 def load_logged_in_user():
     user_id = session.get('user_id')
@@ -36,7 +37,6 @@ def load_logged_in_user():
         g.user = get_db().execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
 
 def login_required(view):
-    """A decorator to ensure a user is logged in before accessing a page."""
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if g.user is None:
@@ -47,40 +47,63 @@ def login_required(view):
 # --- Main Routes ---
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    original_text = ''
+    polished_text = ''
+    quota_left = 0
+
     if g.user:
-        if request.method == 'POST':
-            original_text = request.form['original_text']
-            polished_text = polish_text(original_text)
+        # --- QUOTA LOGIC ---
+        today = date.today()
+        last_reset = date.fromisoformat(g.user['last_quota_reset'])
+        # If the month is new, reset the user's quota
+        if today.month != last_reset.month or today.year != last_reset.year:
             db = get_db()
-            db.execute(
-                'INSERT INTO documents (user_id, original_text, polished_text, created_at) VALUES (?, ?, ?, ?)',
-                (g.user['id'], original_text, polished_text, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            )
+            db.execute('UPDATE users SET usage_count = ?, last_quota_reset = ? WHERE id = ?', (0, today.isoformat(), g.user['id']))
             db.commit()
-            return render_template('index.html', original_text=original_text, polished_text=polished_text)
-    return render_template('index.html')
+            # Reload user data to reflect the change
+            g.user = get_db().execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        
+        usage_count = g.user['usage_count'] if g.user['usage_count'] is not None else 0
+        quota_left = MONTHLY_QUOTA - usage_count
 
+        if request.method == 'POST':
+            if quota_left > 0:
+                original_text = request.form['original_text']
+                polished_text = polish_text(original_text)
+                db = get_db()
+                # Increment usage count and save document
+                db.execute('UPDATE users SET usage_count = usage_count + 1 WHERE id = ?', (g.user['id'],))
+                db.execute('INSERT INTO documents (user_id, original_text, polished_text, created_at) VALUES (?, ?, ?, ?)',
+                           (g.user['id'], original_text, polished_text, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                db.commit()
+                # Decrement quota_left for immediate UI update
+                quota_left -= 1
+            else:
+                flash("You have used your monthly quota. Upgrade to Pro for unlimited access!")
+                original_text = request.form['original_text']
+
+    elif request.method == 'POST': # Guest user polishing
+        original_text = request.form['original_text']
+        polished_text = polish_text(original_text)
+        
+    return render_template('index.html', original_text=original_text, polished_text=polished_text, quota_left=quota_left)
+
+# ... (dashboard route remains the same) ...
 @app.route('/dashboard')
-@login_required # Protect this page
+@login_required
 def dashboard():
-    """Shows a history of the logged-in user's documents."""
     db = get_db()
-    documents = db.execute(
-        'SELECT original_text, polished_text, created_at FROM documents WHERE user_id = ? ORDER BY created_at DESC',
-        (g.user['id'],)
-    ).fetchall()
-
+    documents = db.execute('SELECT * FROM documents WHERE user_id = ? ORDER BY created_at DESC', (g.user['id'],)).fetchall()
     docs_with_dates = []
     for doc in documents:
         doc_dict = dict(doc)
         try:
-            # Handle multiple potential datetime formats for robustness
             doc_dict['created_at'] = datetime.strptime(doc_dict['created_at'], '%Y-%m-%d %H:%M:%S')
-        except ValueError:
-            doc_dict['created_at'] = datetime.strptime(doc_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+        except (ValueError, TypeError):
+            pass
         docs_with_dates.append(doc_dict)
-
     return render_template('dashboard.html', documents=docs_with_dates)
+
 
 # --- Auth Routes ---
 @app.route('/register', methods=['GET', 'POST'])
@@ -90,9 +113,17 @@ def register():
         password = request.form['password']
         password_hash = generate_password_hash(password)
         created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # --- QUOTA LOGIC: Set initial values for new user ---
+        today_str = date.today().isoformat()
+        initial_usage = 0
+        
         db = get_db()
         try:
-            db.execute("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)", (username, password_hash, created_at))
+            db.execute(
+                "INSERT INTO users (username, password_hash, created_at, usage_count, last_quota_reset) VALUES (?, ?, ?, ?, ?)",
+                (username, password_hash, created_at, initial_usage, today_str)
+            )
             db.commit()
         except db.IntegrityError:
             flash("Username already taken.")
@@ -100,6 +131,7 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html')
 
+# ... (login and logout routes remain the same) ...
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
