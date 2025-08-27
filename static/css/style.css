@@ -1,1 +1,14 @@
 /* Your custom CSS will go here */
+
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-top: 5rem;
+}
+
+.card {
+    max-width: 450px;
+    width: 100%;
+    padding: 2rem;
+}

@@ -5,6 +5,7 @@
     <title>PolishedText.ai</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <nav class="container">
@@ -26,7 +27,7 @@
         {% if messages %}
         <div class="flash-error">
             {% for message in messages %}
-            <span>{{ message }}</span>
+            <span style="color: red;">{{ message }}</span>
             {% endfor %}
         </div>
         {% endif %}

@@ -1,5 +1,22 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Register</h2><form method='post'><label>Username</label><input name='username' required><label>Password</label><input name='password' type='password' required><button type='submit'>Register</button></form>
+    <article>
+        <header>
+            <h2>Create a Free Account</h2>
+        </header>
+        
+        <form method="post">
+            <label for="username">Username</label>
+            <input type="text" name="username" id="username" placeholder="Choose a username" required>
+            
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" placeholder="Your email address" required>
+
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" placeholder="Choose a secure password" required>
+            
+            <button type="submit">Register</button>
+        </form>
+    </article>
 {% endblock %}
