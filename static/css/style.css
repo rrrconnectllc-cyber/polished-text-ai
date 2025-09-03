@@ -1,14 +1,63 @@
-/* Your custom CSS will go here */
+/* static/css/style.css */
+:root {
+    --pico-font-size: 100%; /* Use Pico's base font size */
+}
 
-.login-container {
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.auth-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+}
+
+@media (min-width: 768px) {
+    .auth-grid {
+        grid-template-columns: 40% 60%;
+    }
+}
+
+.auth-showcase {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding-top: 5rem;
+    color: white;
+    text-align: center;
+    padding: 2rem;
+    background: linear-gradient(-45deg, #004d40, #00796b, #4db6ac, #004d40);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
 }
 
-.card {
-    max-width: 450px;
-    width: 100%;
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.showcase-content .logo-placeholder {
+    font-size: 4rem;
+    margin-bottom: 0.5rem;
+}
+
+.auth-form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     padding: 2rem;
+    background-color: var(--pico-background-color);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 450px;
+}
+
+/* Make sure our main app container has some padding */
+main.container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
 }

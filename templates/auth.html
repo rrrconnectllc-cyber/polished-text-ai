@@ -1,0 +1,69 @@
+<!-- templates/auth.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }} - PolishedText.ai</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="auth-grid">
+        <div class="auth-showcase">
+            <div class="showcase-content">
+                <!-- Your logo can go here later -->
+                <h1 class="logo-placeholder">🚀</h1>
+                <h1>PolishedText.ai</h1>
+                <p>Unlock Your Best Writing.</p>
+            </div>
+        </div>
+
+        <div class="auth-form-container">
+            <article class="auth-card">
+                <header>
+                    <hgroup>
+                        <h1>{{ title }}</h1>
+                        {% if title == 'Login' %}
+                            <p>Don't have an account? <a href="{{ url_for('register') }}">Sign Up</a></p>
+                        {% else %}
+                            <p>Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+                        {% endif %}
+                    </hgroup>
+                </header>
+
+                {% with messages = get_flashed_messages() %}
+                  {% if messages %}
+                    <div class="flash-error" style="color: var(--pico-color-red);">
+                      {% for message in messages %}
+                        <span>{{ message }}</span><br>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
+
+                <form method="post">
+                    {% if title == 'Register' %}
+                        <label for="username">Username</label>
+                        <input type="text" name="username" id="username" placeholder="Choose a username" required>
+                        
+                        <label for="email">Email</label>
+                        <input type="email" name="email" id="email" placeholder="Your email address" required>
+                    {% else %}
+                         <label for="username">Username or Email</label>
+                        <input type="text" name="username" id="username" placeholder="Your username or email" required>
+                    {% endif %}
+
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" placeholder="Your secure password" required>
+                    
+                    <button type="submit">{{ title }}</button>
+                </form>
+
+                {% if title == 'Login' %}
+                    <a href="{{ url_for('forgot_password') }}" style="display: block; text-align: right; margin-top: 1rem;">Forgot Password?</a>
+                {% endif %}
+            </article>
+        </div>
+    </div>
+</body>
+</html>

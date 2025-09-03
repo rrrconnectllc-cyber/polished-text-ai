@@ -1,4 +1,4 @@
-# app.py (Final version with Welcome Email)
+# app.py (Final version with all features)
 import sqlite3
 from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, g, flash
@@ -12,7 +12,7 @@ from flask_mail import Mail, Message
 # --- App Setup and Configuration ---
 load_dotenv()
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'a-super-secret-key-for-dev'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a-super-secret-key-for-dev')
 DB_FILE = "polished_text.db"
 MONTHLY_QUOTA = 10
 
@@ -24,6 +24,11 @@ app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 mail = Mail(app)
+
+# Token Generator for Password Reset
+from itsdangerous import URLSafeTimedSerializer
+s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
 
 # --- Database Functions ---
 def get_db():
@@ -64,14 +69,19 @@ def index():
     quota_left = 0
     if g.user:
         today = date.today()
-        last_reset = date.fromisoformat(g.user['last_quota_reset'])
-        if today.month != last_reset.month or today.year != last_reset.year:
-            db = get_db()
-            db.execute('UPDATE users SET usage_count = ?, last_quota_reset = ? WHERE id = ?', (0, today.isoformat(), g.user['id']))
-            db.commit()
-            g.user = get_db().execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        # Ensure last_quota_reset is not None before parsing
+        last_reset_str = g.user['last_quota_reset']
+        if last_reset_str:
+            last_reset = date.fromisoformat(last_reset_str)
+            if today.month != last_reset.month or today.year != last_reset.year:
+                db = get_db()
+                db.execute('UPDATE users SET usage_count = ?, last_quota_reset = ? WHERE id = ?', (0, today.isoformat(), g.user['id']))
+                db.commit()
+                g.user = get_db().execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        
         usage_count = g.user['usage_count'] if g.user['usage_count'] is not None else 0
         quota_left = MONTHLY_QUOTA - usage_count
+
         if request.method == 'POST':
             if quota_left > 0:
                 original_text = request.form['original_text']
@@ -85,10 +95,13 @@ def index():
             else:
                 flash("You have used your monthly quota. Upgrade to Pro for unlimited access!")
                 original_text = request.form['original_text']
+
     elif request.method == 'POST':
         original_text = request.form['original_text']
         polished_text = polish_text(original_text)
+        
     return render_template('index.html', original_text=original_text, polished_text=polished_text, quota_left=quota_left)
+
 
 @app.route('/dashboard')
 @login_required
@@ -116,7 +129,7 @@ def register():
         email = request.form.get('email')
         if not email:
             flash("An email address is required.")
-            return render_template('register.html')
+            return render_template('auth.html', title='Register')
         password_hash = generate_password_hash(password)
         created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         today_str = date.today().isoformat()
@@ -139,10 +152,10 @@ def register():
                 print(f"Error sending email: {e}")
         except db.IntegrityError:
             flash("Username or email already taken.")
-            return render_template('register.html')
+            return render_template('auth.html', title='Register')
         flash("Registration successful! Please log in.")
         return redirect(url_for('login'))
-    return render_template('register.html')
+    return render_template('auth.html', title='Register')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -150,19 +163,61 @@ def login():
         username = request.form['username']
         password = request.form['password']
         db = get_db()
-        user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        user = db.execute(
+            'SELECT * FROM users WHERE username = ? OR email = ?', (username, username)
+        ).fetchone()
         if user is None or not check_password_hash(user['password_hash'], password):
             flash('Incorrect username or password.')
         else:
             session.clear()
             session['user_id'] = user['id']
             return redirect(url_for('index'))
-    return render_template('login.html')
+    return render_template('auth.html', title='Login')
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('index'))
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        db = get_db()
+        user = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+        
+        if user:
+            token = s.dumps(email, salt='password-reset-salt')
+            reset_url = url_for('reset_password', token=token, _external=True)
+            msg = Message('Password Reset Request',
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[email])
+            msg.body = f'To reset your password, visit the following link: {reset_url}'
+            mail.send(msg)
+            
+        flash('If an account with that email exists, a reset link has been sent.')
+        return redirect(url_for('login'))
+        
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        email = s.loads(token, salt='password-reset-salt', max_age=1800)
+    except (SignatureExpired, BadTimeSignature):
+        flash('The password reset link is invalid or has expired.')
+        return redirect(url_for('forgot_password'))
+
+    if request.method == 'POST':
+        new_password = request.form['password']
+        password_hash = generate_password_hash(new_password)
+        db = get_db()
+        db.execute('UPDATE users SET password_hash = ? WHERE email = ?', (password_hash, email))
+        db.commit()
+        flash('Your password has been updated! You can now log in.')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password_form.html')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
